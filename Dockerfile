@@ -9,7 +9,7 @@ ARG PATH="/root/miniconda3/bin:${PATH}"
 ENV TZ=Europe/Berlin
 RUN apt-get update && apt-get dist-upgrade -y
 RUN apt-get install -y python3 python3-setuptools python3-pip python3-matplotlib cython3 zlib1g-dev make libncurses5-dev r-base libxml2-dev
-RUN apt-get install wget
+RUN apt-get install wget tree
 RUN pip install READemption
 
 RUN wget \
@@ -21,7 +21,5 @@ RUN conda --version
 RUN conda update --yes conda
 RUN conda install -c bioconda segemehl=0.3.4
 RUN echo "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager') ; BiocManager::install('DESeq2')" | R --no-save
-
-RUN reademption --version
 
 WORKDIR /root

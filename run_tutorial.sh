@@ -3,7 +3,7 @@
 main(){
     readonly DOCKER_PATH=/usr/bin/docker
     readonly IMAGE_WITHOUT_TAG=reademption
-    readonly IMAGE=reademption:1.0.5
+    readonly IMAGE=tillsauerwein/reademption:1.0.5
     readonly CONTAINER_NAME=reademption_container
     readonly READEMPTION_ANALYSIS_FOLDER=reademption_analysis
     readonly FTP_SOURCE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/210/855/GCF_000210855.2_ASM21085v2

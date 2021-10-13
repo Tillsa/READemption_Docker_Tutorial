@@ -2,14 +2,15 @@
 
 main(){
     readonly DOCKER_PATH=/usr/bin/docker
-    readonly IMAGE_WITHOUT_TAG=reademption_105
-    readonly IMAGE=reademption_105:latest
+    readonly IMAGE_WITHOUT_TAG=reademption
+    readonly IMAGE=reademption:1.0.5
     readonly CONTAINER_NAME=reademption_container
     readonly READEMPTION_ANALYSIS_FOLDER=reademption_analysis
     readonly FTP_SOURCE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/210/855/GCF_000210855.2_ASM21085v2
     readonly MAPPING_PROCESSES=6
     readonly COVERAGE_PROCESSES=6
     readonly GENE_QUANTI_PROCESSES=6
+    readonly LOCAL_OUTOUT_PATH="."
 
 
 
@@ -24,11 +25,10 @@ main(){
 }
 
 all(){
-    ## running the analysis:
+    ## Creating image and container:
     build_reademption_image
-    #build_reademption_image_no_cache
     create_running_container
-
+    ## Running the analysis:
     create_reademtption_folder
     download_reference_sequences
     download_annotation
@@ -37,22 +37,24 @@ all(){
     build_coverage_files
     run_gene_quanti
     run_deseq
+    copy_analysis_to_local
 
 
     ## inspecting the container:
+    #build_reademption_image_no_cache
     #execute_command_ls
     #execute_command_tree
+    #show_containers
     #stop_container
     #start_container
     #remove_all_containers
-    #execute_command_show_gene_quanti
 
 }
 
 ## Running analysis
 
 build_reademption_image(){
-    $DOCKER_PATH build -f Dockerfile -t $IMAGE_WITHOUT_TAG .
+    $DOCKER_PATH build -f Dockerfile -t $IMAGE .
 }
 
 # creates a running container with bash
@@ -136,6 +138,9 @@ run_deseq(){
     echo "deseq done"
 }
 
+copy_analysis_to_local(){
+  $DOCKER_PATH cp ${CONTAINER_NAME}:/root/${READEMPTION_ANALYSIS_FOLDER} ${LOCAL_OUTOUT_PATH}
+}
 
 ## Inspecting
 
@@ -160,10 +165,9 @@ execute_command_tree(){
     $DOCKER_PATH exec $CONTAINER_NAME tree $READEMPTION_ANALYSIS_FOLDER
 }
 
-execute_command_show_gene_quanti(){
-    #$DOCKER_PATH exec $CONTAINER_NAME pip show reademption
 
-    $DOCKER_PATH exec $CONTAINER_NAME cat /usr/local/lib/python3.8/dist-packages/reademptionlib/gff3.py
+show_containers(){
+   $DOCKER_PATH ps -a
 }
 
 # stop the container

@@ -11,9 +11,6 @@ RUN apt-get update && apt-get dist-upgrade -y
 RUN apt-get install -y python3 python3-setuptools python3-pip python3-matplotlib cython3 zlib1g-dev make libncurses5-dev r-base libxml2-dev
 RUN apt-get install wget tree
 RUN pip install READemption
-#RUN pip uninstall biopython -y
-#RUN pip install pip install biopython==1.78
-
 RUN wget \
     https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \

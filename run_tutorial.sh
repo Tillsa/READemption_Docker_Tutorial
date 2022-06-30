@@ -3,10 +3,10 @@
 main(){
     readonly DOCKER_PATH=/usr/bin/docker
     readonly IMAGE_WITHOUT_TAG=reademption
-    readonly IMAGE=tillsauerwein/reademption:1.0.5
+    readonly IMAGE=tillsauerwein/reademption:2.0.0
     readonly CONTAINER_NAME=reademption_container
     readonly READEMPTION_ANALYSIS_FOLDER=reademption_analysis
-    readonly FTP_SOURCE=https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/210/855/GCF_000210855.2_ASM21085v2
+    readonly FTP_SOURCE=ftp://ftp.ncbi.nih.gov/genomes/archive/old_refseq/Bacteria/Salmonella_enterica_serovar_Typhimurium_SL1344_uid86645/
     readonly MAPPING_PROCESSES=6
     readonly COVERAGE_PROCESSES=6
     readonly GENE_QUANTI_PROCESSES=6
@@ -26,17 +26,21 @@ main(){
 
 all(){
     ## Creating image and container:
-    build_reademption_image
+    #build_reademption_image
     create_running_container
     ## Running the analysis:
-    create_reademtption_folder
+    create_reademption_folder
     download_reference_sequences
+    modify_fasta_headers
     download_annotation
     download_and_subsample_reads
     align_reads
     build_coverage_files
     run_gene_quanti
     run_deseq
+    run_viz_align
+    run_viz_gene_quanti
+    run_viz_deseq
     copy_analysis_to_local
 
 
@@ -63,27 +67,44 @@ create_running_container(){
 }
 
 # create the reademption input and outputfolders inside the container
-create_reademtption_folder(){
+create_reademption_folder(){
     $DOCKER_PATH exec $CONTAINER_NAME \
-      reademption create -f $READEMPTION_ANALYSIS_FOLDER
+      reademption create --project_path $READEMPTION_ANALYSIS_FOLDER --species salmonella="Salmonella Typhimurium"
 }
 
 # download the reference sequences to the reademption iput folder inside the container
 download_reference_sequences(){
   $DOCKER_PATH exec $CONTAINER_NAME \
-    wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/reference_sequences/salmonella.fa.gz \
-      ${FTP_SOURCE}/GCF_000210855.2_ASM21085v2_genomic.fna.gz
+  wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_016810.fa $FTP_SOURCE/NC_016810.fna
   $DOCKER_PATH exec $CONTAINER_NAME \
-    gunzip ${READEMPTION_ANALYSIS_FOLDER}/input/reference_sequences/salmonella.fa.gz
+  wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017718.fa $FTP_SOURCE/NC_017718.fna
+  $DOCKER_PATH exec $CONTAINER_NAME \
+  wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017719.fa $FTP_SOURCE/NC_017719.fna
+  $DOCKER_PATH exec $CONTAINER_NAME \
+  wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017720.fa $FTP_SOURCE/NC_017720.fna
 }
+# Modify fasta headers of ref seq
+
+modify_fasta_headers(){
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    sed -i "s/>/>NC_016810.1 /" ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_016810.fa
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    sed -i "s/>/>NC_017718.1 /" ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017718.fa
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    sed -i "s/>/>NC_017719.1 /" ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017719.fa
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    sed -i "s/>/>NC_017720.1 /" ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_reference_sequences/NC_017720.fa
+}
+
 
 
 download_annotation(){
     $DOCKER_PATH exec $CONTAINER_NAME \
-      wget -O ${READEMPTION_ANALYSIS_FOLDER}/input/annotations/salmonella.gff.gz \
-        ${FTP_SOURCE}/GCF_000210855.2_ASM21085v2_genomic.gff.gz
+    wget -P ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_annotations https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/210/855/GCF_000210855.2_ASM21085v2/GCF_000210855.2_ASM21085v2_genomic.gff.gz
     $DOCKER_PATH exec $CONTAINER_NAME \
-      gunzip ${READEMPTION_ANALYSIS_FOLDER}/input/annotations/salmonella.gff.gz
+    gunzip ${READEMPTION_ANALYSIS_FOLDER}/input/salmonella_annotations/GCF_000210855.2_ASM21085v2_genomic.gff.gz
+
+
 }
 
 download_and_subsample_reads(){
@@ -99,43 +120,54 @@ download_and_subsample_reads(){
 
 align_reads(){
     $DOCKER_PATH exec $CONTAINER_NAME \
-      reademption align \
-			-p ${MAPPING_PROCESSES} \
-			-a 95 \
-			-l 20 \
-			--poly_a_clipping \
-			--progress \
-			--split \
-			     -f $READEMPTION_ANALYSIS_FOLDER
+    reademption align \
+    -p ${MAPPING_PROCESSES} \
+    --poly_a_clipping \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
 
 }
 
 build_coverage_files(){
     $DOCKER_PATH exec $CONTAINER_NAME \
-      reademption coverage \
-      -p $COVERAGE_PROCESSES \
-      -f $READEMPTION_ANALYSIS_FOLDER
-
-    echo "coverage done"
+    reademption coverage \
+    -p ${COVERAGE_PROCESSES} \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
 }
 
 run_gene_quanti(){
     $DOCKER_PATH exec $CONTAINER_NAME \
       reademption gene_quanti \
-      -p $GENE_QUANTI_PROCESSES \
-         -f $READEMPTION_ANALYSIS_FOLDER
-    echo "gene quanti done"
+      -p ${GENE_QUANTI_PROCESSES} \
+      --features CDS,tRNA,rRNA \
+      --project_path $READEMPTION_ANALYSIS_FOLDER
 }
 
 
 
 run_deseq(){
     $DOCKER_PATH exec $CONTAINER_NAME \
-			reademption deseq \
-			--libs InSPI2_R1,InSPI2_R2,LSP_R1,LSP_R2 \
-			--conditions replicate1,replicate2,replicate1,replicate2 \
-         -f $READEMPTION_ANALYSIS_FOLDER
-    echo "deseq done"
+    reademption deseq \
+    -l InSPI2_R1.fa.bz2,InSPI2_R2.fa.bz2,LSP_R1.fa.bz2,LSP_R2.fa.bz2 \
+    -c InSPI2,InSPI2,LSP,LSP \
+    -r 1,2,1,2 \
+    --libs_by_species salmonella=InSPI2_R1,InSPI2_R2,LSP_R1,LSP_R2 \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
+}
+
+run_viz_align(){
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    reademption viz_align \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
+}
+run_viz_gene_quanti(){
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    reademption viz_gene_quanti \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
+}
+run_viz_deseq(){
+    $DOCKER_PATH exec $CONTAINER_NAME \
+    reademption viz_deseq \
+    --project_path $READEMPTION_ANALYSIS_FOLDER
 }
 
 copy_analysis_to_local(){
